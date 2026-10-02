@@ -33,7 +33,7 @@ console.log("hii")
 const port = process.env.PORT || 5000;
 try {
   await connectDB();
-  app.listen(port, () => console.log(`GarbaJodi API listening on port ${port}`));
+  app.listen(port, () => console.log(`GarbaMate API listening on port ${port}`));
 } catch (error) {
   console.error('Unable to start server:', error.message);
   process.exit(1);

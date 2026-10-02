@@ -7,11 +7,11 @@ import cloudinary, { cloudinaryConfigured } from '../config/cloudinary.js';
 
 async function uploadToCloudinary(file, userId) {
   const publicId = `${String(userId)}-${crypto.randomUUID()}`;
-  const temporaryPath = path.join(os.tmpdir(), `garbajodi-${publicId}${path.extname(file.originalname).toLowerCase() || '.img'}`);
+  const temporaryPath = path.join(os.tmpdir(), `garbamate-${publicId}${path.extname(file.originalname).toLowerCase() || '.img'}`);
   await writeFile(temporaryPath, file.buffer);
   try {
     return await cloudinary.uploader.upload(temporaryPath, {
-      folder: 'garbajodi/partners',
+      folder: 'garbamate/partners',
       public_id: publicId,
     });
   } finally {

@@ -18,9 +18,9 @@ export async function sendOtpEmail(email, otp) {
     const result = await transporter.sendMail({
       from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
       to: email,
-      subject: 'Your GarbaJodi verification code',
-      text: `Your GarbaJodi verification code is ${otp}. It expires in 10 minutes.`,
-      html: `<p>Your GarbaJodi verification code is <strong>${otp}</strong>.</p><p>This code expires in 10 minutes.</p>`,
+      subject: 'Your GarbaMate verification code',
+      text: `Your GarbaMate verification code is ${otp}. It expires in 10 minutes.`,
+      html: `<p>Your GarbaMate verification code is <strong>${otp}</strong>.</p><p>This code expires in 10 minutes.</p>`,
     });
     console.log(`OTP email accepted by SMTP for ${email}: ${result.messageId}`);
   } catch (error) {
