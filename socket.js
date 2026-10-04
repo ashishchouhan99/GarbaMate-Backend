@@ -6,6 +6,7 @@ import { assertChatAccess } from './middleware/chatAccess.js';
 
 export function attachSocket(server, corsOptions) {
   const io = new Server(server, { cors: corsOptions });
+  const userSockets = new Map();
   io.use((socket, next) => {
     try {
       const token = socket.handshake.auth?.token || socket.handshake.headers.authorization?.replace(/^Bearer\s+/, '');
@@ -19,11 +20,26 @@ export function attachSocket(server, corsOptions) {
   const messageTimes = new Map();
   io.on('connection', (socket) => {
     const userId = String(socket.user.id);
+    const sockets = userSockets.get(userId) || new Set();
+    sockets.add(socket.id);
+    userSockets.set(userId, sockets);
+    const isOnline = (id) => (userSockets.get(String(id))?.size || 0) > 0;
+    io.emit('presence', { userId, online: true });
+    const notifyPresence = (room, participantId) => {
+      io.to(room).emit('presence', { userId: String(participantId), online: isOnline(participantId) });
+    };
     socket.on('join', async (bookingId, acknowledge) => {
       try {
         const access = await assertChatAccess(bookingId, userId);
-        socket.join(`booking:${bookingId}`);
-        if (typeof acknowledge === 'function') acknowledge({ ok: true, chatExpiresAt: access.chatExpiresAt });
+        const room = `booking:${bookingId}`;
+        socket.join(room);
+        socket.data.chatRooms = socket.data.chatRooms || new Map();
+        socket.data.chatRooms.set(String(bookingId), { seekerId: String(access.seekerId), partnerId: String(access.partnerId) });
+        const otherUserId = String(access.seekerId) === userId ? access.partnerId : access.seekerId;
+        const otherOnline = isOnline(otherUserId);
+        socket.emit('presence', { userId: String(otherUserId), online: otherOnline });
+        notifyPresence(room, userId);
+        if (typeof acknowledge === 'function') acknowledge({ ok: true, chatExpiresAt: access.chatExpiresAt, participantId: String(otherUserId), participantOnline: otherOnline });
       } catch (error) {
         if (typeof acknowledge === 'function') acknowledge({ ok: false, message: error.message });
       }
@@ -65,6 +81,24 @@ export function attachSocket(server, corsOptions) {
         io.to(`booking:${payload.bookingId}`).emit('read', { bookingId: payload.bookingId, userId });
         if (typeof acknowledge === 'function') acknowledge({ ok: true });
       } catch (error) { if (typeof acknowledge === 'function') acknowledge({ ok: false, message: error.message }); }
+    });
+    socket.on('presence:check', (participantId, acknowledge) => {
+      const online = isOnline(participantId);
+      if (typeof acknowledge === 'function') acknowledge({ userId: String(participantId), online });
+      socket.emit('presence', { userId: String(participantId), online });
+    });
+    socket.on('presence:ping', (participantId, acknowledge) => {
+      const online = isOnline(participantId);
+      if (typeof acknowledge === 'function') acknowledge({ userId: String(participantId), online });
+    });
+    socket.on('disconnect', () => {
+      const activeSockets = userSockets.get(userId);
+      activeSockets?.delete(socket.id);
+      if (activeSockets?.size === 0) userSockets.delete(userId);
+      if (!activeSockets || activeSockets.size === 0) io.emit('presence', { userId, online: false });
+      for (const [bookingId] of socket.data.chatRooms || []) {
+        notifyPresence(`booking:${bookingId}`, userId);
+      }
     });
   });
   return io;
