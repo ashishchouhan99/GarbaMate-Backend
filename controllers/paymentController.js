@@ -5,8 +5,8 @@ import PartnerProfile from '../models/PartnerProfile.js';
 import { hasProfileAccess } from '../middleware/paidAccess.js';
 
 const amounts = {
-  PROFILE_ACCESS: Number(process.env.PROFILE_ACCESS_AMOUNT || 9900),
-  PROFILE_LISTING: Number(process.env.PROFILE_LISTING_AMOUNT || 14900),
+  PROFILE_ACCESS: Number(process.env.PROFILE_ACCESS_AMOUNT || 29900),
+  PROFILE_LISTING: Number(process.env.PROFILE_LISTING_AMOUNT || 49900),
 };
 const paymentMode = process.env.PAYMENT_MODE || 'razorpay';
 const mockPaymentsEnabled = paymentMode === 'mock' && process.env.NODE_ENV !== 'production';
@@ -21,7 +21,12 @@ export async function accessStatus(req, res) {
     hasProfileAccess(req.user._id),
     PartnerProfile.findOne({ userId: req.user._id }).select('listingStatus isActive'),
   ]);
-  res.json({ hasAccess: Boolean(access), listingStatus: profile?.listingStatus || null, isListed: Boolean(profile?.isActive && profile?.listingStatus === 'active') });
+  res.json({
+    hasAccess: Boolean(access),
+    listingStatus: profile?.listingStatus || null,
+    isListed: Boolean(profile?.isActive && profile?.listingStatus === 'active'),
+    prices: Object.fromEntries(Object.entries(amounts).map(([purpose, amount]) => [purpose, amount / 100])),
+  });
 }
 
 export async function createOrder(req, res) {

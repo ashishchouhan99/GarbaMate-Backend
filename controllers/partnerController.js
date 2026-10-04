@@ -1,11 +1,12 @@
 import PartnerProfile from '../models/PartnerProfile.js';
 
 export async function listPartners(req, res) {
-  const { city, date, gender, skillLevel, minPrice, maxPrice } = req.query;
+  const { city, date, gender, skillLevel, event, minPrice, maxPrice } = req.query;
   const filter = { isActive: true, $or: [{ listingStatus: 'active' }, { listingStatus: { $exists: false } }] };
   if (city) filter.city = { $regex: city, $options: 'i' };
   if (gender) filter.gender = { $regex: `^${gender}$`, $options: 'i' };
   if (skillLevel) filter.skillLevel = skillLevel;
+  if (event) filter.preferredEvent = { $regex: event, $options: 'i' };
   if (minPrice !== undefined || maxPrice !== undefined) filter.price = {};
   if (minPrice !== undefined) filter.price.$gte = Number(minPrice);
   if (maxPrice !== undefined) filter.price.$lte = Number(maxPrice);
@@ -15,7 +16,7 @@ export async function listPartners(req, res) {
 }
 
 export async function previewPartners(req, res) {
-  const profiles = await PartnerProfile.find({ isActive: true, $or: [{ listingStatus: 'active' }, { listingStatus: { $exists: false } }] })
+  const profiles = await PartnerProfile.find({ isActive: true, photoUrl: { $exists: true, $ne: '' }, $or: [{ listingStatus: 'active' }, { listingStatus: { $exists: false } }] })
     .populate('userId', 'name')
     .select('userId city skillLevel age photoUrl garbaStyle preferredEvent')
     .sort({ createdAt: -1 })

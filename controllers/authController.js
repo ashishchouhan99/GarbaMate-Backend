@@ -77,13 +77,15 @@ export async function verifyOtp(req, res) {
   if (!pending.otpExpiresAt || pending.otpExpiresAt < new Date()) return res.status(400).json({ message: 'This code has expired. Please request a new one.' });
   if (hashOtp(req.body.otp) !== pending.otp) return res.status(400).json({ message: 'Incorrect verification code.' });
   const existingUser = await User.findOne({ email });
-  if (existingUser?.isVerified) return res.status(409).json({ message: 'An account with this email already exists.' });
-  const user = existingUser || new User({ email: pending.email });
-  user.name = pending.name;
-  user.phone = pending.phone;
-  user.password = pending.password;
-  user.role = pending.role;
-  user.isVerified = true;
+  if (existingUser) return res.status(409).json({ message: 'An account with this email already exists.' });
+  const user = new User({
+    name: pending.name,
+    email: pending.email,
+    phone: pending.phone,
+    password: pending.password,
+    role: pending.role,
+    isVerified: true,
+  });
   user.$locals.passwordIsHashed = true;
   await user.save();
   await PendingSignup.deleteOne({ _id: pending._id });
