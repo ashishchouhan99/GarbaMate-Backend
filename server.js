@@ -1,6 +1,7 @@
 
 import 'dotenv/config';
 import express from 'express';
+import http from 'http';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import { connectDB } from './config/db.js';
@@ -10,6 +11,9 @@ import partnerRoutes from './routes/partnerRoutes.js';
 import bookingRoutes from './routes/bookingRoutes.js';
 import reviewRoutes from './routes/reviewRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
+import chatRoutes from './routes/chatRoutes.js';
+import chatInboxRoutes from './routes/chatInboxRoutes.js';
+import { attachSocket } from './socket.js';
 
 import { notFound, errorHandler } from './middleware/errorHandler.js';
 
@@ -62,6 +66,8 @@ app.use('/api/partners', partnerRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/bookings', chatRoutes);
+app.use('/api/chats', chatInboxRoutes);
 
 // Error handling
 app.use(notFound);
@@ -71,8 +77,9 @@ const port = process.env.PORT || 5000;
 
 try {
   await connectDB();
-
-  app.listen(port, '0.0.0.0', () => {
+  const httpServer = http.createServer(app);
+  attachSocket(httpServer, corsOptions);
+  httpServer.listen(port, '0.0.0.0', () => {
     console.log(`GarbaMate API listening on port ${port}`);
   });
 } catch (error) {

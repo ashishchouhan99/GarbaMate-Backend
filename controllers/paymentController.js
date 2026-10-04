@@ -10,6 +10,7 @@ const amounts = {
 };
 const paymentMode = process.env.PAYMENT_MODE || 'razorpay';
 const mockPaymentsEnabled = paymentMode === 'mock' && process.env.NODE_ENV !== 'production';
+const checkoutConfigId = process.env.RAZORPAY_CHECKOUT_CONFIG_ID?.trim() || undefined;
 
 function razorpayClient() {
   if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) return null;
@@ -44,11 +45,34 @@ export async function createOrder(req, res) {
   const amount = amounts[purpose];
   if (!Number.isInteger(amount) || amount < 100) return res.status(500).json({ message: 'Payment amount is not configured correctly.' });
   const existingOrder = await Payment.findOne({ userId: req.user._id, purpose, status: 'created' }).sort({ createdAt: -1 });
-  if (existingOrder) return res.status(201).json({ orderId: existingOrder.orderId, amount: existingOrder.amount, currency: existingOrder.currency, keyId: process.env.RAZORPAY_KEY_ID, purpose });
+  if (existingOrder) return res.status(201).json({
+    mode: 'razorpay',
+    orderId: existingOrder.orderId,
+    amount: existingOrder.amount,
+    currency: existingOrder.currency,
+    keyId: process.env.RAZORPAY_KEY_ID,
+    purpose,
+    ...(checkoutConfigId ? { checkoutConfigId } : {}),
+  });
   const receipt = `${purpose.slice(0, 3)}-${Date.now()}-${String(req.user._id).slice(-8)}`;
-  const order = await client.orders.create({ amount, currency: 'INR', receipt, notes: { purpose, userId: String(req.user._id) } });
+  const orderOptions = {
+    amount,
+    currency: 'INR',
+    receipt,
+    notes: { purpose, userId: String(req.user._id) },
+    ...(checkoutConfigId ? { checkout_config_id: checkoutConfigId } : {}),
+  };
+  const order = await client.orders.create(orderOptions);
   await Payment.create({ userId: req.user._id, purpose, orderId: order.id, amount });
-  res.status(201).json({ mode: 'razorpay', orderId: order.id, amount, currency: order.currency, keyId: process.env.RAZORPAY_KEY_ID, purpose });
+  res.status(201).json({
+    mode: 'razorpay',
+    orderId: order.id,
+    amount,
+    currency: order.currency,
+    keyId: process.env.RAZORPAY_KEY_ID,
+    purpose,
+    ...(checkoutConfigId ? { checkoutConfigId } : {}),
+  });
 }
 
 export async function completeMockPayment(req, res) {

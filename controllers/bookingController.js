@@ -7,7 +7,18 @@ export async function createBooking(req, res) {
   const partner = await PartnerProfile.findById(partnerId);
   if (!partner || !partner.isActive) return res.status(404).json({ message: 'Partner not found' });
   if (String(partner.userId) === String(req.user._id)) return res.status(400).json({ message: 'You cannot book your own profile' });
-  const booking = await Booking.create({ seekerId: req.user._id, partnerId, date: new Date(date) });
+  const existing = await Booking.findOne({ seekerId: req.user._id, partnerId }).select('status');
+  if (existing) return res.status(409).json({ message: 'You have already sent a request to this partner.', status: existing.status });
+  let booking;
+  try {
+    booking = await Booking.create({ seekerId: req.user._id, partnerId, date: new Date(date) });
+  } catch (error) {
+    if (error?.code === 11000) {
+      const duplicate = await Booking.findOne({ seekerId: req.user._id, partnerId }).select('status');
+      return res.status(409).json({ message: 'You have already sent a request to this partner.', status: duplicate?.status });
+    }
+    throw error;
+  }
   res.status(201).json(await booking.populate([{ path: 'seekerId', select: 'name' }, { path: 'partnerId', populate: { path: 'userId', select: 'name' } }]));
 }
 

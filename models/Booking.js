@@ -7,4 +7,6 @@ const bookingSchema = new mongoose.Schema({
   status: { type: String, enum: ['pending', 'confirmed', 'rejected', 'cancelled'], default: 'pending' }
 }, { timestamps: { createdAt: true, updatedAt: false } });
 
+bookingSchema.index({ seekerId: 1, partnerId: 1 }, { unique: true, name: 'unique_seeker_partner' });
+
 export default mongoose.model('Booking', bookingSchema);
